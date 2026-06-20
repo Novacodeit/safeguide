@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeGuide — AI Emergency Companion</title>
+  <style>
+    /* === RESET & BASE === */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #07090F 0%, #0B1120 60%, #080E1A 100%);
+      background-attachment: fixed;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: #F1F5F9;
+    }
+
+    /* === SCREENS === */
+    .screen { display: none; max-width: 440px; margin: 0 auto; padding: 28px 20px; min-height: 100vh; }
+    .screen.active { display: block; }
+
+    /* === HEADER === */
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+    .brand-name { font-size: 11px; letter-spacing: .28em; color: #F59E0B; font-weight: 800; text-transform: uppercase; }
+    .brand-sub  { font-size: 10px; color: #1E293B; letter-spacing: .12em; text-transform: uppercase; margin-top: 2px; }
+    .row        { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+
+    /* === LANGUAGE BUTTONS === */
+    .lang-group { display: flex; gap: 5px; }
+    .lang-btn {
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+      color: #334155; border-radius: 6px; padding: 4px 7px;
+      font-size: 11px; cursor: pointer; font-weight: 700;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .lang-btn.active { background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.35); color: #F59E0B; }
+
+    /* === DRILL BADGE === */
+    .drill-badge {
+      background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.25);
+      border-radius: 6px; padding: 4px 11px; font-size: 11px; color: #F59E0B;
+      font-weight: 800; letter-spacing: .1em; display: none;
+    }
+
+    /* === BACK BUTTON === */
+    .back-btn {
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
+      color: #64748B; border-radius: 8px; padding: 8px 14px;
+      cursor: pointer; font-size: 14px; flex-shrink: 0;
+    }
+
+    /* === LIVE ALERTS === */
+    #alerts-section { margin-bottom: 28px; display: none; }
+    .alerts-label { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+    .alert-dot { width: 7px; height: 7px; border-radius: 50%; background: #EF4444; animation: blink 1s infinite; }
+    .alerts-title { font-size: 10px; letter-spacing: .18em; color: #EF4444; font-weight: 800; text-transform: uppercase; }
+    .alert-card {
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+      border-radius: 9px; padding: 9px 13px;
+      display: flex; gap: 11px; align-items: center;
+      margin-bottom: 7px; animation: slideIn .4s ease-out;
+    }
+    .alert-card-text { font-size: 12px; font-weight: 600; color: #CBD5E1; line-height: 1.35; }
+    .alert-severity  { font-size: 10px; color: #334155; margin-top: 2px; }
+
+    /* === EMERGENCY BUTTON === */
+    .emergency-center { display: flex; flex-direction: column; align-items: center; gap: 24px; padding-top: 20px; }
+    .pulse-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+    .pulse-ring {
+      position: absolute; border-radius: 50%;
+      border: 1px solid rgba(239,68,68,.18);
+      animation: ping 1.8s ease-out infinite;
+      pointer-events: none;
+    }
+    #emergency-btn {
+      width: 170px; height: 170px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #F87171 0%, #DC2626 50%, #9B1C1C 100%);
+      border: none; color: white; font-size: 15px; font-weight: 900;
+      letter-spacing: .13em; cursor: pointer; text-transform: uppercase;
+      box-shadow: 0 0 55px rgba(239,68,68,.38), 0 0 110px rgba(239,68,68,.14),
+                  inset 0 1px 0 rgba(255,255,255,.18);
+      position: relative; z-index: 1; transition: transform .1s;
+    }
+    #emergency-btn:active { transform: scale(.96); }
+    .emergency-hint { color: #1E293B; font-size: 13px; text-align: center; max-width: 210px; line-height: 1.55; }
+
+    /* === HOME BOTTOM BUTTONS === */
+    .home-btns { display: flex; gap: 10px; }
+    .home-btn {
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+      color: #475569; border-radius: 12px; padding: 11px 20px;
+      font-size: 13px; cursor: pointer; font-weight: 600; flex: 1;
+    }
+    .settings-dot {
+      display: inline-block; width: 7px; height: 7px;
+      border-radius: 50%; background: #34D399; margin-left: 5px;
+      vertical-align: middle;
+    }
+
+    /* === SETTINGS MODAL === */
+    #settings-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.7); z-index: 100;
+      align-items: flex-end; justify-content: center;
+    }
+    #settings-overlay.open { display: flex; }
+    .settings-sheet {
+      background: #0F172A; border: 1px solid rgba(255,255,255,.08);
+      border-radius: 20px 20px 0 0; padding: 28px 24px 40px;
+      width: 100%; max-width: 440px;
+      animation: slideUp .3s ease-out;
+    }
+    .settings-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px;
+    }
+    .settings-title { font-size: 18px; font-weight: 800; }
+    .settings-close {
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+      color: #64748B; border-radius: 8px; padding: 6px 12px;
+      cursor: pointer; font-size: 14px;
+    }
+    .settings-label {
+      font-size: 11px; font-weight: 700; color: #475569;
+      text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px;
+    }
+    .settings-input {
+      width: 100%; background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1); color: #F1F5F9;
+      border-radius: 10px; padding: 12px 14px; font-size: 14px;
+      margin-bottom: 18px; outline: none;
+      transition: border-color .2s;
+    }
+    .settings-input:focus { border-color: rgba(245,158,11,.5); }
+    .settings-input::placeholder { color: #334155; }
+    .settings-hint { font-size: 12px; color: #334155; margin-top: -12px; margin-bottom: 18px; line-height: 1.5; }
+    .settings-save {
+      width: 100%; background: linear-gradient(135deg, #F59E0B, #D97706);
+      border: none; color: white; border-radius: 12px; padding: 14px;
+      font-size: 14px; font-weight: 800; cursor: pointer;
+    }
+    .settings-status { font-size: 12px; color: #34D399; margin-top: 10px; text-align: center; display: none; }
+
+    /* === DISASTER GRID === */
+    .section-title { font-size: 24px; font-weight: 800; margin: 0 0 6px; letter-spacing: -.02em; }
+    .section-sub   { color: #334155; font-size: 14px; margin: 0 0 24px; }
+    .disaster-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .disaster-btn {
+      border-radius: 14px; padding: 18px 10px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 9px;
+      transition: transform .15s;
+    }
+    .disaster-btn:hover  { transform: scale(1.03); }
+    .disaster-btn:active { transform: scale(.97); }
+    .d-icon  { font-size: 30px; }
+    .d-label { font-size: 13px; font-weight: 700; }
+
+    /* === VOICE BUTTON === */
+    .voice-btn {
+      width: 100%; background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      color: #475569; border-radius: 12px; padding: 12px;
+      font-size: 13px; cursor: pointer; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-bottom: 20px; transition: background .15s, border-color .15s, color .15s;
+    }
+    .voice-btn.listening { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.35); color: #EF4444; }
+
+    /* === GUIDANCE HEADER === */
+    .guidance-header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+    .g-icon  { font-size: 26px; }
+    .g-label { font-size: 17px; font-weight: 800; }
+    .g-drill { font-size: 10px; color: #F59E0B; font-weight: 800; letter-spacing: .1em; display: none; }
+    .speaking-bars { margin-left: auto; display: none; gap: 4px; align-items: flex-end; height: 22px; }
+    .s-bar { width: 3px; border-radius: 3px; background: #F59E0B; animation: wave .75s ease-in-out infinite; }
+
+    /* === LOADING SPINNER === */
+    .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 260px; gap: 16px; }
+    .spinner { width: 46px; height: 46px; border: 3px solid rgba(255,255,255,.08); border-top-color: #F59E0B; border-radius: 50%; animation: spin .75s linear infinite; }
+    .loading-text { color: #334155; font-size: 14px; }
+
+    /* === STEP CARDS === */
+    #steps-container { display: none; }
+    .step-card {
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
+      border-radius: 13px; padding: 14px 16px;
+      display: flex; gap: 13px; align-items: flex-start;
+      margin-bottom: 11px; animation: slideIn .4s ease-out;
+    }
+    .step-num {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      font-size: 12px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; margin-top: 1px;
+    }
+    .step-emoji { font-size: 18px; flex-shrink: 0; }
+    .step-text  { font-size: 14px; line-height: 1.6; color: #E2E8F0; font-weight: 600; }
+    .step-text.closing { color: #94A3B8; font-weight: 500; }
+
+    /* === ACTION BUTTONS === */
+    #action-buttons { display: none; margin-top: 22px; animation: slideIn .4s ease-out; }
+    .call-btn {
+      display: block; width: 100%; text-align: center; text-decoration: none;
+      background: linear-gradient(135deg, #DC2626, #9B1C1C);
+      border: none; border-radius: 13px; padding: 14px;
+      color: white; font-size: 15px; font-weight: 800; cursor: pointer;
+      box-shadow: 0 4px 28px rgba(239,68,68,.28); margin-bottom: 10px;
+    }
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .action-btn {
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+      color: #94A3B8; border-radius: 12px; padding: 12px 8px;
+      font-size: 13px; cursor: pointer; font-weight: 700;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .action-btn.sent    { background: rgba(52,211,153,.1);  border-color: rgba(52,211,153,.3);  color: #34D399; }
+    .action-btn.sending { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.25); color: #F59E0B; }
+    .action-btn.failed  { background: rgba(239,68,68,.08);  border-color: rgba(239,68,68,.25);  color: #EF4444; }
+    .recovery-btn {
+      width: 100%; background: rgba(245,158,11,.06);
+      border: 1px solid rgba(245,158,11,.2);
+      color: #F59E0B; border-radius: 12px; padding: 12px;
+      font-size: 13px; cursor: pointer; font-weight: 700;
+    }
+
+    /* === SERVICES === */
+    .service-card {
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+      border-radius: 13px; padding: 16px 14px; text-decoration: none;
+      display: flex; align-items: center; gap: 14px; margin-bottom: 10px;
+      animation: slideIn .35s ease-out both;
+    }
+    .svc-icon  { font-size: 26px; }
+    .svc-name  { font-size: 15px; font-weight: 700; color: #E2E8F0; }
+    .svc-note  { font-size: 12px; color: #334155; margin-top: 2px; }
+    .svc-arrow { margin-left: auto; color: #1E293B; font-size: 18px; }
+
+    /* === DISCLAIMER === */
+    .disclaimer {
+      background: rgba(245,158,11,.05); border: 1px solid rgba(245,158,11,.12);
+      border-radius: 12px; padding: 14px 16px; margin-top: 22px;
+    }
+    .disclaimer-title { font-size: 11px; color: #92400E; font-weight: 800; margin-bottom: 5px; }
+    .disclaimer-text  { font-size: 12px; color: #57534E; line-height: 1.65; }
+
+    /* === ANIMATIONS === */
+    @keyframes ping    { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.45);opacity:0} }
+    @keyframes blink   { 0%,100%{opacity:1} 50%{opacity:0} }
+    @keyframes slideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    @keyframes spin    { to{transform:rotate(360deg)} }
+    @keyframes wave    { 0%,100%{transform:scaleY(.5)} 50%{transform:scaleY(1.6)} }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════ HOME ═══════════════════════ -->
+<div id="screen-home" class="screen active">
+
+  <div class="header">
+    <div>
+      <div class="brand-name">SafeGuide</div>
+      <div class="brand-sub">AI Emergency Companion</div>
+    </div>
+    <div class="lang-group">
+      <button class="lang-btn active" data-lang="en" onclick="setLanguage('en')">EN</button>
+      <button class="lang-btn"        data-lang="es" onclick="setLanguage('es')">ES</button>
+      <button class="lang-btn"        data-lang="fr" onclick="setLanguage('fr')">FR</button>
+      <button class="lang-btn"        data-lang="zh" onclick="setLanguage('zh')">ZH</button>
+    </div>
+  </div>
+
+  <div id="alerts-section">
+    <div class="alerts-label">
+      <span class="alert-dot"></span>
+      <span class="alerts-title">Live Alerts</span>
+    </div>
+    <div id="alerts-container"></div>
+  </div>
+
+  <div class="emergency-center">
+    <div class="pulse-wrap">
+      <div class="pulse-ring" style="width:220px;height:220px;animation-delay:0s"></div>
+      <div class="pulse-ring" style="width:272px;height:272px;animation-delay:.28s;border-color:rgba(239,68,68,.12)"></div>
+      <div class="pulse-ring" style="width:324px;height:324px;animation-delay:.56s;border-color:rgba(239,68,68,.07)"></div>
+      <button id="emergency-btn" onclick="triggerEmergency()">EMERGENCY</button>
+    </div>
+
+    <p class="emergency-hint">Press for immediate AI&#8209;guided emergency response</p>
+
+    <div class="home-btns">
+      <button class="home-btn" onclick="triggerDrill()">🎓 Practice Drill</button>
+      <button class="home-btn" id="settings-btn" onclick="openSettings()">
+        ⚙️ Settings<span id="settings-dot" class="settings-dot" style="display:none"></span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════ SELECT ═══════════════════════ -->
+<div id="screen-select" class="screen">
+
+  <div class="row">
+    <button class="back-btn" onclick="goBack()">←</button>
+    <div id="drill-badge-select" class="drill-badge">DRILL MODE</div>
+  </div>
+
+  <div class="lang-group" style="margin-bottom:20px">
+  <button class="lang-btn active" data-lang="en" onclick="setLanguage('en')">EN</button>
+  <button class="lang-btn" data-lang="es" onclick="setLanguage('es')">ES</button>
+  <button class="lang-btn" data-lang="fr" onclick="setLanguage('fr')">FR</button>
+  <button class="lang-btn" data-lang="zh" onclick="setLanguage('zh')">ZH</button>
+</div>
+  <h2 class="section-title">What's happening?</h2>
+  <p class="section-sub">Select type for immediate AI guidance</p>
+
+  <button id="voice-btn" class="voice-btn" onclick="startListening()">
+    🎤 Or speak your emergency
+  </button>
+
+  <div id="disaster-grid" class="disaster-grid"></div>
+
+</div>
+
+<!-- ═══════════════════════ GUIDANCE ═══════════════════════ -->
+<div id="screen-guidance" class="screen">
+
+  <div class="guidance-header">
+    <button class="back-btn" onclick="goBack()">←</button>
+    <span id="g-icon"  class="g-icon"></span>
+    <div>
+      <div id="g-label" class="g-label"></div>
+      <div id="g-drill" class="g-drill">DRILL</div>
+    </div>
+    <div id="speaking-bars" class="speaking-bars">
+      <div class="s-bar" style="height:8px;animation-delay:0s"></div>
+      <div class="s-bar" style="height:13px;animation-delay:.14s"></div>
+      <div class="s-bar" style="height:18px;animation-delay:.28s"></div>
+      <div class="s-bar" style="height:23px;animation-delay:.42s"></div>
+    </div>
+  </div>
+
+  <div id="loading" class="loading">
+    <div id="spinner" class="spinner"></div>
+    <div class="loading-text">Getting guidance…</div>
+  </div>
+
+  <div id="steps-container"></div>
+
+  <div id="action-buttons">
+    <a href="tel:911" class="call-btn">📞 Call 911 Now</a>
+    <div class="action-grid">
+      <button id="alert-btn" class="action-btn" onclick="sendParentAlert()">📱 Alert Parents</button>
+      <button class="action-btn" onclick="showScreen('services')">🔗 Find Help</button>
+    </div>
+    <button class="recovery-btn" onclick="goToRecovery()">🔄 What Happens Now?</button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════ SERVICES ═══════════════════════ -->
+<div id="screen-services" class="screen">
+
+  <div class="row">
+    <button class="back-btn" onclick="goBack()">←</button>
+    <div>
+      <div style="font-size:18px;font-weight:800">Emergency Services</div>
+      <div id="svc-sub" style="font-size:12px;color:#334155"></div>
+    </div>
+  </div>
+
+  <div id="services-container"></div>
+
+  <div class="disclaimer">
+    <div class="disclaimer-title">⚠️ IMPORTANT</div>
+    <div class="disclaimer-text">
+      SafeGuide provides immediate support only. Always follow instructions from emergency
+      personnel and official authorities. This AI does not replace professional emergency services.
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════ RECOVERY ═══════════════════════ -->
+<div id="screen-recovery" class="screen">
+
+  <div class="row">
+    <button class="back-btn" onclick="goBack()">←</button>
+    <div>
+      <div style="font-size:18px;font-weight:800">What Happens Now?</div>
+      <div id="rec-sub" style="font-size:12px;color:#334155"></div>
+    </div>
+  </div>
+
+  <div id="recovery-loading" class="loading">
+    <div id="rec-spinner" class="spinner"></div>
+    <div class="loading-text">Getting recovery steps…</div>
+  </div>
+
+  <div id="recovery-steps" style="display:none"></div>
+
+  <div id="recovery-services" style="margin-top:24px;display:none">
+    <div style="font-size:11px;letter-spacing:.15em;color:#94A3B8;font-weight:700;text-transform:uppercase;margin-bottom:12px">
+      Recovery Resources
+    </div>
+    <a href="https://www.fema.gov/assistance"       class="service-card" style="animation-delay:.00s"><span class="svc-icon">🏛️</span><div><div class="svc-name">FEMA Disaster Aid</div><div class="svc-note">Apply for federal assistance</div></div><span class="svc-arrow">→</span></a>
+    <a href="https://www.redcross.org"              class="service-card" style="animation-delay:.06s"><span class="svc-icon">🔴</span><div><div class="svc-name">Red Cross</div><div class="svc-note">Shelter, food, and recovery</div></div><span class="svc-arrow">→</span></a>
+    <a href="tel:211"                               class="service-card" style="animation-delay:.12s"><span class="svc-icon">📱</span><div><div class="svc-name">211 Local Aid</div><div class="svc-note">Find local recovery services</div></div><span class="svc-arrow">→</span></a>
+    <a href="https://www.disasterassistance.gov"   class="service-card" style="animation-delay:.18s"><span class="svc-icon">💻</span><div><div class="svc-name">DisasterAssistance.gov</div><div class="svc-note">All federal programs in one place</div></div><span class="svc-arrow">→</span></a>
+  </div>
+
+  <div class="disclaimer" style="margin-top:16px">
+    <div class="disclaimer-title">⚠️ IMPORTANT</div>
+    <div class="disclaimer-text">
+      Human emergency personnel make all final decisions.
+      SafeGuide offers guidance only — always follow official instructions.
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════ SETTINGS MODAL ═══════════════════════ -->
+<div id="settings-overlay" onclick="overlayClose(event)">
+  <div class="settings-sheet">
+
+    <div class="settings-header">
+      <div class="settings-title">⚙️ Settings</div>
+      <button class="settings-close" onclick="closeSettings()">✕ Close</button>
+    </div>
+
+    <div class="settings-label">Your Name</div>
+    <input id="input-name" class="settings-input" type="text"
+           placeholder="e.g. Alex Johnson" autocomplete="name" />
+
+    <div class="settings-label">Parent / Guardian Phone</div>
+    <input id="input-phone" class="settings-input" type="tel"
+           placeholder="+1 555 000 0000" autocomplete="tel" />
+    <div class="settings-hint">
+      Include country code (e.g. +1 for US). This number receives a real SMS
+      when you tap "Alert Parents" during an emergency.
+    </div>
+
+    <button class="settings-save" onclick="saveSettings()">Save Settings</button>
+    <div id="settings-status" class="settings-status">✓ Saved!</div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════ JAVASCRIPT ═══════════════════════ -->
+<script>
+
+// ════════════════════════════════════════════════════════
+// CONSTANTS
+// ════════════════════════════════════════════════════════
+
+const LANGUAGES = {
+  en: { name:'English', code:'en-US' },
+  es: { name:'Spanish', code:'es-ES' },
+  fr: { name:'French',  code:'fr-FR' },
+  zh: { name:'Chinese', code:'zh-CN' },
+};
+
+const DISASTERS = [
+  { id:'earthquake', label:'Earthquake', icon:'🌍', color:'#F59E0B', bg:'rgba(245,158,11,.08)', border:'rgba(245,158,11,.25)' },
+  { id:'wildfire',   label:'Wildfire',   icon:'🔥', color:'#EF4444', bg:'rgba(239,68,68,.08)',  border:'rgba(239,68,68,.25)'  },
+  { id:'tornado',    label:'Tornado',    icon:'🌪️', color:'#818CF8', bg:'rgba(129,140,248,.08)',border:'rgba(129,140,248,.25)'},
+  { id:'tsunami',    label:'Tsunami',    icon:'🌊', color:'#38BDF8', bg:'rgba(56,189,248,.08)', border:'rgba(56,189,248,.25)' },
+  { id:'hurricane',  label:'Hurricane',  icon:'🌀', color:'#A78BFA', bg:'rgba(167,139,250,.08)',border:'rgba(167,139,250,.25)'},
+  { id:'medical',    label:'Medical',    icon:'🚑', color:'#34D399', bg:'rgba(52,211,153,.08)', border:'rgba(52,211,153,.25)' },
+  { id:'lockdown',   label:'Lockdown',   icon:'🔒', color:'#C084FC', bg:'rgba(192,132,252,.08)',border:'rgba(192,132,252,.25)'},
+];
+
+const SERVICES = {
+  earthquake:[
+    { name:'Call 911',      href:'tel:911',                  icon:'📞', note:'Tap to call' },
+    { name:'FEMA',          href:'https://www.fema.gov',     icon:'🏛️', note:'Disaster relief' },
+    { name:'Red Cross',     href:'https://www.redcross.org', icon:'🔴', note:'Shelter & aid' },
+    { name:'211 Local Aid', href:'tel:211',                  icon:'📱', note:'Tap to call' },
+  ],
+  wildfire:[
+    { name:'Call 911',      href:'tel:911',                  icon:'📞', note:'Tap to call' },
+    { name:'NIFC',          href:'https://www.nifc.gov',     icon:'🔥', note:'Fire updates' },
+    { name:'Red Cross',     href:'https://www.redcross.org', icon:'🔴', note:'Evacuation help' },
+    { name:'211 Local Aid', href:'tel:211',                  icon:'📱', note:'Tap to call' },
+  ],
+  tornado:[
+    { name:'Call 911',      href:'tel:911',                  icon:'📞', note:'Tap to call' },
+    { name:'NOAA Weather',  href:'https://www.weather.gov',  icon:'🌩️', note:'Live alerts' },
+    { name:'Red Cross',     href:'https://www.redcross.org', icon:'🔴', note:'Shelter & aid' },
+    { name:'211 Local Aid', href:'tel:211',                  icon:'📱', note:'Tap to call' },
+  ],
+  tsunami:[
+    { name:'Call 911',      href:'tel:911',                  icon:'📞', note:'Tap to call' },
+    { name:'NOAA Tsunami',  href:'https://www.tsunami.gov',  icon:'🌊', note:'Warnings' },
+    { name:'FEMA',          href:'https://www.fema.gov',     icon:'🏛️', note:'Disaster relief' },
+    { name:'211 Local Aid', href:'tel:211',                  icon:'📱', note:'Tap to call' },
+  ],
+  hurricane:[
+    { name:'Call 911',      href:'tel:911',                  icon:'📞', note:'Tap to call' },
+    { name:'NHC / NOAA',   href:'https://www.nhc.noaa.gov', icon:'🌀', note:'Track storm' },
+    { name:'FEMA',          href:'https://www.fema.gov',     icon:'🏛️', note:'Disaster relief' },
+    { name:'211 Local Aid', href:'tel:211',                  icon:'📱', note:'Tap to call' },
+  ],
+  medical:[
+    { name:'Call 911',         href:'tel:911',         icon:'📞', note:'Tap to call' },
+    { name:'Poison Control',   href:'tel:18002221222', icon:'☠️', note:'1-800-222-1222' },
+    { name:'Crisis Text Line', href:'sms:741741',      icon:'💬', note:'Text HOME to 741741' },
+    { name:'211 Local Aid',    href:'tel:211',         icon:'📱', note:'Tap to call' },
+  ],
+  lockdown:[
+    { name:'Call 911',         href:'tel:911',          icon:'📞', note:'Tap to call' },
+    { name:'Crisis Text Line', href:'sms:741741',       icon:'💬', note:'Text HOME to 741741' },
+    { name:'FBI Tip Line',     href:'tel:18004255324',  icon:'🔒', note:'1-800-CALL-FBI' },
+    { name:'211 Local Aid',    href:'tel:211',          icon:'📱', note:'Tap to call' },
+  ],
+};
+
+const FALLBACK = {
+  earthquake:['Drop, cover, and hold on immediately.','Stay away from windows and heavy objects.','Do not run outside until shaking stops.','Check for injuries and await instructions.'],
+  wildfire:  ['Move indoors and close all windows.','Breathe through a wet cloth if there is smoke.','Follow your evacuation route immediately.','Call 911 and report your exact location.'],
+  tornado:   ['Move to the lowest floor immediately.','Get into an interior room away from windows.','Cover your head and neck with your arms.','Stay until you receive an official all-clear.'],
+  tsunami:   ['Move immediately to high ground inland.','Do not go to the shore to watch the wave.','Stay at least 100 feet above sea level.','Await official all-clear before returning.'],
+  hurricane: ['Stay indoors and away from all windows.','Move to the lowest floor if winds are severe.','Do not go outside during the eye of the storm.','Await official all-clear from local authorities.'],
+  medical:   ['Stay calm and call 911 immediately.','Do not move the injured person unless necessary.','Apply steady pressure to any bleeding wounds.','Stay on the line with 911 until help arrives.'],
+  lockdown:  ['Lock the door and turn off the lights.','Stay low and away from windows and doors.','Silence your phone completely and stay quiet.','Wait for official police all-clear before moving.'],
+};
+
+// ════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════
+
+let currentLang     = 'en';
+let currentScreen   = 'home';
+let currentDisaster = null;
+let isDrill         = false;
+
+// ════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════
+
+const BACK_MAP = { select:'home', guidance:'select', services:'guidance', recovery:'guidance' };
+
+function showScreen(name) {
+  window.speechSynthesis.cancel();
+  hideSpeakingBars();
+  currentScreen = name;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function goBack() { showScreen(BACK_MAP[currentScreen] || 'home'); }
+
+// ════════════════════════════════════════════════════════
+// LANGUAGE  — plain variable, no stale closure issue
+// ════════════════════════════════════════════════════════
+
+function setLanguage(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.lang === lang)
+  );
+}
+// ════════════════════════════════════════════════════════
+// SPEECH
+// ════════════════════════════════════════════════════════
+function getCurrentLang() {
+  const activeBtn = document.querySelector('.lang-btn.active');
+  return activeBtn ? activeBtn.dataset.lang : 'en';
+}
+let availableVoices = [];
+function loadVoices() {
+  availableVoices = window.speechSynthesis.getVoices();
+}
+window.speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+function getBestVoice(langCode) {
+  if (!availableVoices.length) availableVoices = window.speechSynthesis.getVoices();
+  const prefix = langCode.split('-')[0];
+  return availableVoices.find(v => v.lang === langCode)
+      || availableVoices.find(v => v.lang.startsWith(prefix))
+      || null;
+}
+
+function speak(text) {
+  window.speechSynthesis.cancel();
+  const u   = new SpeechSynthesisUtterance(text);
+  u.lang    = LANGUAGES[currentLang].code;
+  const voice = getBestVoice(LANGUAGES[currentLang].code);
+  if (voice) u.voice = voice;
+  u.rate    = 0.88;
+  u.pitch   = 1.0;
+  u.volume  = 1.0;
+  u.onstart = showSpeakingBars;
+  u.onend   = hideSpeakingBars;
+  u.onerror = hideSpeakingBars;
+  window.speechSynthesis.speak(u);
+}
+
+function showSpeakingBars() {
+  const el = document.getElementById('speaking-bars');
+  if (el) el.style.display = 'flex';
+}
+function hideSpeakingBars() {
+  const el = document.getElementById('speaking-bars');
+  if (el) el.style.display = 'none';
+}
+
+// ════════════════════════════════════════════════════════
+// VOICE RECOGNITION
+// ════════════════════════════════════════════════════════
+
+function startListening() {
+  const SR  = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById('voice-btn');
+  if (!SR) { speak('Voice input is not supported on this browser.'); return; }
+
+  const rec  = new SR();
+  rec.lang   = LANGUAGES[currentLang].code;
+  rec.onresult = (e) => {
+    const said  = e.results[0][0].transcript.toLowerCase();
+    const match = DISASTERS.find(d => said.includes(d.label.toLowerCase()) || said.includes(d.id));
+    if (match) selectDisaster(match);
+    else speak('I did not catch that. Please tap your emergency type.');
+    resetVoiceBtn(btn);
+  };
+  rec.onend   = () => resetVoiceBtn(btn);
+  rec.onerror = () => resetVoiceBtn(btn);
+  rec.start();
+  btn.classList.add('listening');
+  btn.textContent = '🎤 Listening…';
+}
+
+function resetVoiceBtn(btn) {
+  btn.classList.remove('listening');
+  btn.textContent = '🎤 Or speak your emergency';
+}
+
+// ════════════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════════════
+
+function openSettings() {
+  document.getElementById('input-name').value  = localStorage.getItem('sg_name')  || '';
+  document.getElementById('input-phone').value = localStorage.getItem('sg_phone') || '';
+  document.getElementById('settings-status').style.display = 'none';
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function overlayClose(e) {
+  if (e.target === document.getElementById('settings-overlay')) closeSettings();
+}
+
+function saveSettings() {
+  const name  = document.getElementById('input-name').value.trim();
+  const phone = document.getElementById('input-phone').value.trim();
+
+  if (name)  localStorage.setItem('sg_name',  name);
+  if (phone) localStorage.setItem('sg_phone', phone);
+
+  // Show green dot on settings button when phone is saved
+  document.getElementById('settings-dot').style.display = phone ? 'inline-block' : 'none';
+
+  const status = document.getElementById('settings-status');
+  status.style.display = 'block';
+  setTimeout(() => {
+    status.style.display = 'none';
+    closeSettings();
+  }, 1200);
+}
+
+function loadSettings() {
+  const phone = localStorage.getItem('sg_phone');
+  document.getElementById('settings-dot').style.display = phone ? 'inline-block' : 'none';
+}
+
+// ════════════════════════════════════════════════════════
+// EMERGENCY / DRILL TRIGGER
+// ════════════════════════════════════════════════════════
+
+function triggerEmergency() {
+  isDrill = false;
+  document.getElementById('drill-badge-select').style.display = 'none';
+  showScreen('select');
+  speak('Emergency activated. What type of emergency are you experiencing?');
+}
+
+function triggerDrill() {
+  isDrill = true;
+  document.getElementById('drill-badge-select').style.display = 'inline-block';
+  showScreen('select');
+  speak('Drill mode started. Select a scenario to practice.');
+}
+
+// ════════════════════════════════════════════════════════
+// SELECT DISASTER
+// ════════════════════════════════════════════════════════
+
+function selectDisaster(d) {
+  currentDisaster = d;
+
+  document.getElementById('g-icon').textContent  = d.icon;
+  document.getElementById('g-label').textContent = d.label;
+  document.getElementById('g-label').style.color = d.color;
+  document.getElementById('g-drill').style.display = isDrill ? 'block' : 'none';
+  document.getElementById('spinner').style.borderTopColor = d.color;
+  document.querySelectorAll('.s-bar').forEach(b => b.style.background = d.color);
+
+  document.getElementById('svc-sub').textContent = d.icon + ' ' + d.label + ' resources';
+  document.getElementById('rec-sub').textContent = d.icon + ' ' + d.label + ' recovery';
+
+  document.getElementById('loading').style.display         = 'flex';
+  document.getElementById('steps-container').style.display = 'none';
+  document.getElementById('steps-container').innerHTML     = '';
+  document.getElementById('action-buttons').style.display  = 'none';
+
+  // Reset parent alert button
+  const ab = document.getElementById('alert-btn');
+  ab.textContent = '📱 Alert Parents';
+  ab.className   = 'action-btn';
+  ab.disabled    = false;
+
+  // Reset recovery screen
+  document.getElementById('recovery-loading').style.display  = 'flex';
+  document.getElementById('recovery-steps').style.display    = 'none';
+  document.getElementById('recovery-steps').innerHTML        = '';
+  document.getElementById('recovery-services').style.display = 'none';
+
+  renderServices(d);
+  showScreen('guidance');
+  fetchGuidance(d);
+}
+
+// ════════════════════════════════════════════════════════
+// FETCH AI GUIDANCE
+// ════════════════════════════════════════════════════════
+
+async function fetchGuidance(d) {
+  let steps = [];
+  try {
+    const res  = await fetch('/api/guidance', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ disaster: d.label, language: localStorage.getItem('sg_lang') || 'en', isDrill }),
+    });
+    const data = await res.json();
+    if (data.text) {
+      data.text.split('\n').filter(l => l.trim()).forEach(line => {
+        const m = line.match(/^\d+\.\s+(.+)/);
+        if (m) steps.push(m[1].trim());
+      });
+    }
+  } catch (_) {}
+
+  if (!steps.length) steps = [...(FALLBACK[d.id] || FALLBACK.earthquake)];
+  steps.push('You are doing great. Help is on the way.');
+
+  document.getElementById('loading').style.display         = 'none';
+  document.getElementById('steps-container').style.display = 'block';
+
+  const container = document.getElementById('steps-container');
+  steps.forEach((step, i) => {
+    setTimeout(() => {
+      const isClosing = (i === steps.length - 1);
+      const card = document.createElement('div');
+      card.className = 'step-card';
+      if (isClosing) {
+        card.style.background  = d.bg;
+        card.style.borderColor = d.border;
+        card.innerHTML = `<span class="step-emoji">✅</span><div class="step-text closing">${step}</div>`;
+      } else {
+        card.innerHTML =
+          `<div class="step-num" style="background:${d.bg};border:1px solid ${d.border};color:${d.color}">${i+1}</div>
+           <div class="step-text">${step}</div>`;
+      }
+      container.appendChild(card);
+      if (i === steps.length - 1) {
+        document.getElementById('action-buttons').style.display = 'block';
+      }
+    }, i * 750);
+  });
+
+  setTimeout(() => speak(steps.slice(0, -1).join('. ')), 400);
+}
+
+// ════════════════════════════════════════════════════════
+// PARENT ALERT via Twilio SMS
+// ════════════════════════════════════════════════════════
+
+async function sendParentAlert() {
+  const btn         = document.getElementById('alert-btn');
+  const parentPhone = localStorage.getItem('sg_phone');
+  const studentName = localStorage.getItem('sg_name') || 'A student';
+
+  // If no phone saved, open settings first
+  if (!parentPhone) {
+    openSettings();
+    speak('Please enter a parent phone number in settings first.');
+    return;
+  }
+
+  btn.textContent = '📱 Sending…';
+  btn.className   = 'action-btn sending';
+  btn.disabled    = true;
+
+  try {
+    const res  = await fetch('/api/alert-parents', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        parentPhone,
+        studentName,
+        disaster: currentDisaster?.label || 'Emergency',
+        isDrill,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      btn.textContent = '✓ Alert Sent';
+      btn.className   = 'action-btn sent';
+      speak('Parent alert sent successfully.');
+    } else {
+      btn.textContent = '⚠️ Failed — Retry';
+      btn.className   = 'action-btn failed';
+      btn.disabled    = false;
+    }
+  } catch (_) {
+    btn.textContent = '⚠️ Failed — Retry';
+    btn.className   = 'action-btn failed';
+    btn.disabled    = false;
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// FETCH RECOVERY STEPS
+// ════════════════════════════════════════════════════════
+
+async function goToRecovery() {
+  showScreen('recovery');
+  if (!currentDisaster) return;
+
+  let steps = [];
+  try {
+    console.log("Current language:", currentLang);
+    const res  = await fetch('/api/recovery', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ disaster: currentDisaster.label, language: localStorage.getItem('sg_lang') || 'en' }),
+    });
+    const data = await res.json();
+    console.log("Language:", currentLang);
+    console.log("AI Response:", data.text);
+    if (data.text) {
+      data.text.split('\n').filter(l => l.trim()).forEach(line => {
+        const m = line.match(/^\d+\.\s+(.+)/);
+        if (m) steps.push(m[1].trim());
+      });
+    }
+  } catch (_) {}
+
+  if (!steps.length) steps = [
+    'Check yourself and those nearby for injuries.',
+    'Avoid damaged buildings, downed wires, and floodwater.',
+    'Document property damage with photos for insurance.',
+    'Register with FEMA and local authorities for assistance.',
+  ];
+
+  document.getElementById('recovery-loading').style.display  = 'none';
+  document.getElementById('recovery-steps').style.display    = 'block';
+  document.getElementById('recovery-services').style.display = 'block';
+
+  const d         = currentDisaster;
+  const container = document.getElementById('recovery-steps');
+  steps.forEach((step, i) => {
+    setTimeout(() => {
+      const card = document.createElement('div');
+      card.className = 'step-card';
+      card.innerHTML =
+        `<div class="step-num" style="background:${d.bg};border:1px solid ${d.border};color:${d.color}">${i+1}</div>
+         <div class="step-text">${step}</div>`;
+      container.appendChild(card);
+    }, i * 700);
+  });
+
+  setTimeout(() => speak(steps.join('. ')), 400);
+}
+
+// ════════════════════════════════════════════════════════
+// RENDER SERVICES
+// ════════════════════════════════════════════════════════
+
+function renderServices(d) {
+  const list      = SERVICES[d.id] || SERVICES.medical;
+  const container = document.getElementById('services-container');
+  container.innerHTML = '';
+  list.forEach((s, i) => {
+    const a = document.createElement('a');
+    a.href  = s.href;
+    a.className = 'service-card';
+    a.style.animationDelay = (i * 0.06) + 's';
+    a.innerHTML =
+      `<span class="svc-icon">${s.icon}</span>
+       <div><div class="svc-name">${s.name}</div><div class="svc-note">${s.note}</div></div>
+       <span class="svc-arrow">→</span>`;
+    container.appendChild(a);
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// LIVE ALERTS
+// ════════════════════════════════════════════════════════
+
+async function loadAlerts() {
+  try {
+    const res  = await fetch('/api/alerts');
+    const data = await res.json();
+    if (!data.length) return;
+
+    document.getElementById('alerts-section').style.display = 'block';
+    const container = document.getElementById('alerts-container');
+    data.forEach(a => {
+      const div = document.createElement('div');
+      div.className = 'alert-card';
+      div.style.borderLeft = '3px solid ' + a.color;
+      div.innerHTML =
+        `<span style="font-size:18px">${a.icon}</span>
+         <div>
+           <div class="alert-card-text">${a.title}</div>
+           <div class="alert-severity">${a.severity} severity</div>
+         </div>`;
+      container.appendChild(div);
+    });
+  } catch (_) {}
+}
+
+// ════════════════════════════════════════════════════════
+// BUILD DISASTER GRID
+// ════════════════════════════════════════════════════════
+
+function buildGrid() {
+  const grid = document.getElementById('disaster-grid');
+  DISASTERS.forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'disaster-btn';
+    btn.style.cssText = `background:${d.bg};border:1px solid ${d.border};`;
+    btn.innerHTML =
+      `<span class="d-icon">${d.icon}</span>
+       <span class="d-label" style="color:${d.color}">${d.label}</span>`;
+    btn.addEventListener('click', () => selectDisaster(d));
+    grid.appendChild(btn);
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════
+
+buildGrid();
+loadAlerts();
+loadSettings();
+
+</script>
+</body>
+</html>
